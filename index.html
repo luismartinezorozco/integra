@@ -1309,7 +1309,7 @@
                     addItem('Ingresos y Egresos', 'ph-coins', 'ui.renderAccounting()');
                 } else if (role === 'profesor') {
                     addSection('Académico');
-                    addItem('Mis Salones', 'ph-chalkboard', 'ui.renderDashboard()');
+                    addItem('Mis Salones', 'ph-chalkboard', 'ui.renderTeacherClassrooms()');
                     addItem('Registro de Notas', 'ph-exam', 'ui.renderGrades()');
                     addItem('Control de Asistencia', 'ph-calendar-check', 'ui.renderAttendance()');
                 } else if (role === 'coordinador') {
@@ -1470,12 +1470,154 @@
                                 <span class="inline-block px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-bold mb-2 border border-emerald-200/70">Campus Activo</span>
                                 <h2 class="text-xl font-bold text-slate-900 mb-2">Plataforma INTEGRA LMS</h2>
                                 <p class="text-sm text-slate-600 mb-5 max-w-lg leading-relaxed">Bienvenido al sistema integrado de gestión académica y financiera. Utiliza el menú lateral izquierdo, el buscador superior o el chat institucional en vivo.</p>
-                                <button onclick="ui.renderProfile()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-5 py-2.5 rounded-xl text-sm transition shadow-md shadow-emerald-600/20">Ver mi Perfil</button>
+                                <div class="flex flex-wrap gap-3">
+                                    ${user.role === 'profesor' ? `<button onclick="ui.renderTeacherClassrooms()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-5 py-2.5 rounded-xl text-sm transition shadow-md shadow-emerald-600/20 inline-flex items-center gap-2"><i class="ph-bold ph-chalkboard"></i> Ver Mis Salones</button>` : ''}
+                                    <button onclick="ui.renderProfile()" class="bg-slate-900 hover:bg-slate-800 text-white font-semibold px-5 py-2.5 rounded-xl text-sm transition shadow-sm">Ver mi Perfil</button>
+                                </div>
                             </div>
                         </div>
                     `;
                 }
                 container.innerHTML = html;
+            },
+
+            renderTeacherClassrooms: () => {
+                if (auth.currentUser.role !== 'profesor') return;
+                const container = document.getElementById('view-container');
+                const teacherId = auth.currentUser.id;
+                const myAssignments = db.get('assignments').filter(a => a.teacherId === teacherId);
+                const allPrograms = db.get('programs');
+                const allUsers = db.get('users');
+
+                let html = `
+                    <div class="text-xs text-slate-400 font-medium mb-2 flex items-center gap-1.5">
+                        <span class="hover:text-emerald-600 cursor-pointer transition" onclick="ui.renderDashboard()">Inicio</span>
+                        <span>&rsaquo;</span>
+                        <span class="text-slate-600 font-semibold">Mis Salones</span>
+                    </div>
+
+                    <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-6">
+                        <div>
+                            <h2 class="text-2xl sm:text-3xl font-extrabold text-slate-900">Mis Salones Asignados</h2>
+                            <p class="text-sm text-slate-500 mt-1">Consulta los grupos a tu cargo, sus módulos, estudiantes y accesos directos a notas y asistencia.</p>
+                        </div>
+                        <span class="self-start sm:self-auto px-3.5 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-xs font-bold text-emerald-800">
+                            ${myAssignments.length} salón${myAssignments.length === 1 ? '' : 'es'} asignado${myAssignments.length === 1 ? '' : 's'}
+                        </span>
+                    </div>
+                `;
+
+                if (myAssignments.length === 0) {
+                    html += `
+                        <div class="bg-white rounded-2xl border border-slate-200 p-12 text-center text-slate-400">
+                            <i class="ph-duotone ph-chalkboard-teacher text-5xl mb-3 text-slate-300"></i>
+                            <p class="font-semibold text-slate-600">Aún no tienes salones asignados.</p>
+                            <p class="text-xs mt-1">Cuando la rectoría o coordinación te asigne un grupo, aparecerá automáticamente aquí.</p>
+                        </div>
+                    `;
+                    container.innerHTML = html;
+                    return;
+                }
+
+                html += `<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">`;
+                myAssignments.forEach(a => {
+                    const prog = allPrograms.find(p => p.id === a.programId);
+                    if (!prog) return;
+
+                    const isClosed = prog.fechaCierre && (new Date() > new Date(prog.fechaCierre));
+                    const studentsCount = (a.studentIds || []).length;
+                    const modulosCount = (prog.modulos || []).length;
+                    const horarioText = prog.horarios && prog.horarios.length > 0
+                        ? prog.horarios.map(h => h.texto).join(' · ')
+                        : (prog.horario || 'Horario por definir');
+                    const tagLabel = prog.code || 'Técnico';
+
+                    html += `
+                        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 border-t-4 border-t-emerald-500 p-5 flex flex-col justify-between hover:shadow-md transition">
+                            <div>
+                                <div class="flex items-center justify-between gap-2 mb-3">
+                                    <span class="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[11px] font-bold tracking-wide">${tagLabel}</span>
+                                    <span class="text-xs font-extrabold text-slate-800 uppercase tracking-tight">Salón ${a.salon}</span>
+                                </div>
+
+                                <h3 class="text-base font-extrabold text-slate-900 uppercase leading-snug mb-1.5 line-clamp-2 min-h-[2.75rem]">${prog.nombre}</h3>
+                                <p class="text-xs text-slate-500 mb-4 truncate" title="${horarioText} · ${prog.jornada || ''}">${horarioText} · ${prog.jornada || 'Mañana'}</p>
+
+                                <div class="flex flex-wrap items-center gap-2 pb-4 border-b border-slate-100">
+                                    <button onclick="ui.viewClassroomStudents(${a.id})" class="px-3 py-1.5 rounded-lg border border-slate-200 bg-slate-50/70 hover:bg-slate-100 text-xs text-slate-700 transition">
+                                        <strong class="font-extrabold text-slate-900">${studentsCount}</strong> estudiante${studentsCount === 1 ? '' : 's'}
+                                    </button>
+                                    <span class="px-3 py-1.5 rounded-lg border border-slate-200 bg-slate-50/70 text-xs text-slate-700">
+                                        <strong class="font-extrabold text-slate-900">${modulosCount}</strong> módulo${modulosCount === 1 ? '' : 's'}
+                                    </span>
+                                    ${isClosed ? `<span class="px-2.5 py-1 rounded-lg bg-rose-50 text-rose-700 text-[11px] font-bold">Cerrado</span>` : ''}
+                                </div>
+                            </div>
+
+                            <div class="pt-4 space-y-2.5">
+                                <div class="flex items-center justify-between text-[11px] text-slate-400">
+                                    <span>Cierre de notas:</span>
+                                    <span class="font-semibold text-slate-600">${prog.fechaCierre || 'Sin fecha'}</span>
+                                </div>
+
+                                <div class="grid grid-cols-2 gap-2 pt-1">
+                                    <button onclick="ui.openTeacherGradesForAssign(${a.id})" class="px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm transition inline-flex items-center justify-center gap-1.5">
+                                        <i class="ph-bold ph-exam"></i> Notas
+                                    </button>
+                                    <button onclick="ui.openTeacherAttendanceForAssign(${a.id})" class="px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold shadow-sm transition inline-flex items-center justify-center gap-1.5">
+                                        <i class="ph-bold ph-calendar-check"></i> Asistencia
+                                    </button>
+                                </div>
+                                <button onclick="ui.viewClassroomStudents(${a.id})" class="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 transition">
+                                    Ver lista de estudiantes
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                });
+                html += `</div>`;
+                container.innerHTML = html;
+            },
+
+            viewClassroomStudents: (assignId) => {
+                const assign = db.get('assignments').find(a => a.id === assignId);
+                if (!assign) return;
+                const prog = db.get('programs').find(p => p.id === assign.programId);
+                const allUsers = db.get('users');
+                const ids = assign.studentIds || [];
+
+                if (ids.length === 0) {
+                    return ui.showModal(`Salón ${assign.salon}`, 'Este salón aún no tiene estudiantes matriculados.');
+                }
+
+                const list = ids.map((id, idx) => {
+                    const s = allUsers.find(u => u.id === id);
+                    return s ? `${idx + 1}. ${s.name} ${s.lastName || ''} (${s.docType || 'CC'}: ${s.document || 'N/A'}) · Tel: ${s.cel || s.tel || '-'}` : '';
+                }).filter(Boolean).join('\n');
+
+                ui.showModal(`${prog ? prog.nombre : 'Curso'} · Salón ${assign.salon} (${ids.length})`, list);
+            },
+
+            openTeacherGradesForAssign: (assignId) => {
+                ui.renderGrades();
+                setTimeout(() => {
+                    const sel = document.getElementById('grade-prog');
+                    if (sel) {
+                        sel.value = assignId;
+                        ui.onGradeProgramChange();
+                    }
+                }, 30);
+            },
+
+            openTeacherAttendanceForAssign: (assignId) => {
+                ui.renderAttendance();
+                setTimeout(() => {
+                    const sel = document.getElementById('att-prog');
+                    if (sel) {
+                        sel.value = assignId;
+                        ui.loadAttendanceList();
+                    }
+                }, 30);
             },
 
             renderInstitutions: () => {
