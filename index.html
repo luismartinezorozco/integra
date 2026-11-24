@@ -648,7 +648,7 @@
                 return [...(this.cache[key] || [])];
             },
 
-            set: function(key, newArray) {
+            set: async function(key, newArray) {
                 const oldArray = this.cache[key] || [];
                 this.cache[key] = newArray;
 
@@ -656,15 +656,24 @@
                 const deletedIds = oldArray.filter(item => !newIds.has(String(item.id))).map(item => item.id);
 
                 if (deletedIds.length > 0) {
-                    supabaseClient.from(key).delete().in('id', deletedIds)
-                        .then(({ error }) => { if (error) console.error(`[Supabase Delete ${key}]`, error.message); });
+                    const { error } = await supabaseClient.from(key).delete().in('id', deletedIds);
+                    if (error) {
+                        console.error(`[Supabase Delete ${key}]`, error.message);
+                        ui.showModal('Error en Supabase', `No se pudo eliminar en "${key}": ${error.message}`);
+                        return false;
+                    }
                 }
 
                 if (newArray.length > 0) {
                     const mappedRows = newArray.map(item => sbMapper.toDb(key, item));
-                    supabaseClient.from(key).upsert(mappedRows, { onConflict: 'id' })
-                        .then(({ error }) => { if (error) console.error(`[Supabase Upsert ${key}]`, error.message); });
+                    const { error } = await supabaseClient.from(key).upsert(mappedRows, { onConflict: 'id' });
+                    if (error) {
+                        console.error(`[Supabase Upsert ${key}]`, error.message);
+                        ui.showModal('Error guardando en Supabase', `No se pudo guardar en la tabla "${key}":\n${error.message}\n\nVerifica en Supabase que hayas ejecutado el Script SQL completo y desactivado RLS.`);
+                        return false;
+                    }
                 }
+                return true;
             },
 
             uploadFile: async function(folder, file) {
@@ -3280,8 +3289,8 @@
                 if (pIdx > -1 && programs[pIdx].modulos) {
                     programs[pIdx].modulos = programs[pIdx].modulos.filter(m => m.id != modId);
                     db.set('programs', programs);
-                    ui.renderProgramModules(progId);
                 }
+                ui.renderProgramModules(progId);
             },
 
             showInstForm: (id = null) => {
@@ -3306,8 +3315,7 @@
                     document.getElementById('inst-status').value = 'Activo';
                 }
             },
-
-            saveInstitution: () => {
+            saveInstitution: async () => {
                 const id = document.getElementById('inst-id').value;
                 const name = document.getElementById('inst-name').value.trim();
                 const nit = document.getElementById('inst-nit').value.trim();
@@ -3325,10 +3333,11 @@
                     insts.push({ id: Date.now(), name, nit, email, type, status });
                 }
 
-                db.set('institutions', insts);
+                const ok = await db.set('institutions', insts);
+                if (!ok) return;
                 document.getElementById('inst-form-container').classList.add('hidden');
                 ui.performInstSearch();
-                ui.showModal('Éxito', id ? 'Institución actualizada.' : 'Institución creada.');
+                ui.showModal('Éxito', id ? 'Institución actualizada en Supabase.' : 'Institución guardada en Supabase.');
             },
 
             handleAvatarUpload: (event, targetImgId = 'u-avatar-preview') => {
@@ -3465,7 +3474,7 @@
                 document.getElementById('staff-modal').classList.add('hidden');
             },
 
-            saveStudent: () => {
+            saveStudent: async () => {
                 const id = document.getElementById('std-id').value;
                 const n1 = document.getElementById('std-nombre1').value.trim();
                 const n2 = document.getElementById('std-nombre2').value.trim();
@@ -3502,7 +3511,8 @@
                         const oldDoc = users[idx].document;
                         const updatedPass = (!users[idx].pass || users[idx].pass === oldDoc) ? doc : users[idx].pass;
                         users[idx] = { ...users[idx], name, lastName, document: doc, docType: typeDoc, pass: updatedPass, sexo, email, tel, cel, birthDate: birth, lugarNac, dir, lugarRes, barrio, periodo, sede, horario };
-                        db.set('users', users);
+                        const okUser = await db.set('users', users);
+                        if (!okUser) return;
 
                         let assignments = db.get('assignments');
                         assignments = assignments.map(a => {
@@ -3517,10 +3527,10 @@
                         } else {
                             assignments.push({ id: Date.now(), instId: auth.currentUser.instId, programId: parseInt(progId), salon: salon, teacherId: null, studentIds: [parseInt(id)] });
                         }
-                        db.set('assignments', assignments);
+                        await db.set('assignments', assignments);
 
                         logic.closeStudentModal();
-                        ui.showModal('Éxito', 'Estudiante actualizado correctamente.');
+                        ui.showModal('Éxito', 'Estudiante actualizado en Supabase.');
                         ui.renderStudentDetail(parseInt(id), 'personal', 'basica');
                     }
                 } else {
@@ -3534,7 +3544,8 @@
                     };
 
                     users.push(newStudent);
-                    db.set('users', users);
+                    const okUser = await db.set('users', users);
+                    if (!okUser) return;
 
                     let assignments = db.get('assignments');
                     let assignment = assignments.find(a => a.programId == progId && a.salon === salon);
@@ -3543,10 +3554,10 @@
                     } else {
                         assignments.push({ id: Date.now(), instId: auth.currentUser.instId, programId: parseInt(progId), salon: salon, teacherId: null, studentIds: [newStudent.id] });
                     }
-                    db.set('assignments', assignments);
+                    await db.set('assignments', assignments);
 
                     logic.closeStudentModal();
-                    ui.showModal('Éxito', 'Estudiante matriculado. Su usuario y contraseña inicial es su cédula: ' + doc);
+                    ui.showModal('Éxito', 'Estudiante matriculado en Supabase. Usuario y clave inicial: ' + doc);
                     ui.renderStudentDetail(newStudent.id);
                 }
             },
@@ -3607,15 +3618,17 @@
                         if (users.find(u => u.email === email && u.id != id)) return ui.showModal('Error', 'El correo ya existe.');
                         users[index] = { ...users[index], role, name, email, instId, perms };
                         if (finalAvatar !== null) users[index].avatar = finalAvatar;
-                        db.set('users', users);
-                        ui.showModal('Éxito', 'Usuario actualizado correctamente.');
+                        const ok = await db.set('users', users);
+                        if (!ok) return;
+                        ui.showModal('Éxito', 'Usuario actualizado en Supabase.');
                         logic.closeStaffModal();
                     }
                 } else {
                     if (users.find(u => u.email === email)) return ui.showModal('Error', 'El correo ya existe.');
                     users.push({ id: Date.now(), name, lastName: '', document: '', birthDate: '', role, email, pass, instId, isOnline: false, avatar: finalAvatar, perms });
-                    db.set('users', users);
-                    ui.showModal('Éxito', `Usuario creado. Contraseña por defecto: "123".`);
+                    const ok = await db.set('users', users);
+                    if (!ok) return;
+                    ui.showModal('Éxito', `Usuario guardado en Supabase.\nCorreo: ${email}\nContraseña por defecto: "123".`);
                     logic.closeStaffModal();
                 }
 
@@ -3775,7 +3788,7 @@
                 }
             },
 
-            saveProgram: () => {
+            saveProgram: async () => {
                 const id = document.getElementById('prog-id').value;
                 const code = document.getElementById('prog-code').value.trim();
                 const nombre = document.getElementById('prog-name').value.trim();
@@ -3808,9 +3821,10 @@
                     });
                 }
 
-                db.set('programs', programs);
+                const ok = await db.set('programs', programs);
+                if (!ok) return;
                 document.getElementById('prog-form-container').classList.add('hidden');
-                ui.showModal('Éxito', id ? 'Programa actualizado.' : 'Programa creado correctamente.');
+                ui.showModal('Éxito', id ? 'Programa actualizado en Supabase.' : 'Programa creado en Supabase.');
                 ui.performProgSearch();
             },
 
