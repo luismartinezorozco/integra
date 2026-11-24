@@ -702,6 +702,19 @@
 
             subscribeRealtime: function() {
                 if (this.realtimeChannel) return;
+                this.startHttpSync();
+
+                // Evitar intentar abrir WebSockets si el entorno/sandbox los bloquea (ej. vista previa)
+                let wsAllowed = false;
+                try {
+                    if (typeof window.WebSocket === 'function' && window.self === window.top) {
+                        wsAllowed = true;
+                    }
+                } catch (e) {
+                    wsAllowed = false;
+                }
+                if (!wsAllowed) return;
+
                 try {
                     this.realtimeChannel = supabaseClient
                         .channel('integra-realtime')
@@ -721,7 +734,6 @@
                 } catch (err) {
                     this.startHttpSync();
                 }
-                this.startHttpSync();
             }
         };
 
