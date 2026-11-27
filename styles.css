@@ -1,0 +1,33 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; color: #0f172a; }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        .dropdown-menu { display: none; }
+        .dropdown.active .dropdown-menu { display: block; }
+        .hidden { display: none !important; }
+
+        /* Sidebar Collapsed Styles */
+        #sidebar.collapsed { width: 5rem; }
+        #sidebar.collapsed .sidebar-text,
+        #sidebar.collapsed .sidebar-section-title,
+        #sidebar.collapsed #sidebar-inst-sub { display: none; }
+        #sidebar.collapsed .sidebar-item { justify-content: center; padding-left: 0; padding-right: 0; }
+        #sidebar.collapsed #collapse-icon { transform: rotate(180deg); }
+
+        @keyframes pulse-dot {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.25); opacity: 0.75; }
+        }
+        .online-pulse { animation: pulse-dot 2s infinite; }
+
+        @media print {
+            body * { visibility: hidden; }
+            #print-area, #print-area * { visibility: visible; }
+            #print-area { position: absolute; left: 0; top: 0; width: 100%; }
+            #app-view, #sys-modal, #student-modal, #staff-modal, #token-reset-modal, #chat-windows-dock { display: none !important; }
+        }

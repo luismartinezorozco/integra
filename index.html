@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>INTEGRA LMS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="./styles.css">
+
+</head>
+<body class="h-screen flex flex-col overflow-hidden text-slate-800 bg-slate-100 antialiased">
+
+    <!-- DATALISTS -->
+    <datalist id="colombia-cities">
+        <option value="Barranquilla (Atlántico)"></option>
+        <option value="Soledad (Atlántico)"></option>
+        <option value="Bogotá D.C."></option>
+        <option value="Medellín (Antioquia)"></option>
+        <option value="Cali (Valle del Cauca)"></option>
+        <option value="Cartagena (Bolívar)"></option>
+    </datalist>
+
+    <datalist id="barrios-list">
+        <option value="Centro"></option>
+        <option value="Norte"></option>
+        <option value="Sur"></option>
+        <option value="El Prado"></option>
+        <option value="Alto Prado"></option>
+        <option value="Boston"></option>
+    </datalist>
+
+    <!-- MODAL SISTEMA -->
+    <div id="sys-modal" class="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-[250] flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-200">
+            <div class="px-6 py-4 bg-slate-900 border-b border-slate-800 flex justify-between items-center text-white">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/30">
+                        <i class="ph-fill ph-info text-lg"></i>
+                    </div>
+                    <h3 id="sys-modal-title" class="text-base font-bold">Mensaje</h3>
+                </div>
+                <button onclick="ui.closeModal()" class="text-slate-400 hover:text-white transition p-1 rounded-lg">
+                    <i class="ph ph-x text-lg"></i>
+                </button>
+            </div>
+            <div class="px-6 py-5">
+                <p id="sys-modal-message" class="text-sm text-slate-600 whitespace-pre-line leading-relaxed"></p>
+            </div>
+            <div class="px-6 py-3.5 bg-slate-50 border-t border-slate-100 flex justify-end">
+                <button onclick="ui.closeModal()" class="bg-slate-900 text-white px-5 py-2 rounded-xl hover:bg-slate-800 transition text-sm font-semibold shadow-sm">Entendido</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL ESTUDIANTE -->
+    <div id="student-modal" class="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-[120] flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col max-h-[90vh] border border-slate-200">
+            <div class="px-6 py-4 bg-gradient-to-r from-slate-900 via-slate-800 to-emerald-950 flex justify-between items-center text-white border-b border-emerald-500/30">
+                <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 rounded-xl bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center text-emerald-400">
+                        <i class="ph-fill ph-student text-xl"></i>
+                    </div>
+                    <h3 class="text-lg font-bold tracking-tight" id="student-modal-title">Registrar estudiante</h3>
+                </div>
+                <button onclick="logic.closeStudentModal()" class="text-slate-300 hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition">
+                    <i class="ph ph-x text-xl font-bold"></i>
+                </button>
+            </div>
+            <div class="p-6 overflow-y-auto flex-1 bg-slate-50/70">
+                <input type="hidden" id="std-id">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1.5">Primer nombre <span class="text-rose-500">*</span></label>
+                        <input type="text" id="std-nombre1" class="w-full border border-slate-300 px-3.5 py-2.5 rounded-xl text-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none bg-white transition">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1.5">Segundo nombre</label>
+                        <input type="text" id="std-nombre2" class="w-full border border-slate-300 px-3.5 py-2.5 rounded-xl text-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none bg-white transition">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1.5">Primer apellido <span class="text-rose-500">*</span></label>
+                        <input type="text" id="std-apellido1" class="w-full border border-slate-300 px-3.5 py-2.5 rounded-xl text-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none bg-white transition">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1.5">Segundo apellido</label>
+                        <input type="text" id="std-apellido2" class="w-full border border-slate-300 px-3.5 py-2.5 rounded-xl text-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none bg-white transition">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1.5">Tipo de identificación <span class="text-rose-500">*</span></label>
+                        <select id="std-tipo-doc" class="w-full border border-slate-300 px-3.5 py-2.5 rounded-xl text-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none bg-white transition">
+                            <option value="">Seleccione</option>
+                            <option value="CC">Cédula de Ciudadanía</option>
+                            <option value="TI">Tarjeta de Identidad</option>
+                            <option value="CE">Cédula de Extranjería</option>
+                            <option value="PEP">PEP</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1.5">Número de identificación (Usuario) <span class="text-rose-500">*</span></label>
+                        <input type="text" id="std-doc" class="w-full border border-slate-300 px-3.5 py-2.5 rounded-xl text-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none bg-white transition">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1.5">Sexo <span class="text-rose-500">*</span></label>
+                        <select id="std-sexo" class="w-full border border-slate-300 px-3.5 py-2.5 rounded-xl text-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none bg-white transition">
+                            <option value="">Seleccione</option>
+                            <option value="M">Masculino</option>
+                            <option value="F">Femenino</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1.5">Correo electrónico <span class="text-rose-500">*</span></label>
+                        <input type="email" id="std-email" class="w-full border border-slate-300 px-3.5 py-2.5 rounded-xl text-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none bg-white transition">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1.5">Teléfono <span class="text-rose-500">*</span></label>
+                        <input type="text" id="std-tel" class="w-full border border-slate-300 px-3.5 py-2.5 rounded-xl text-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none bg-white transition">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1.5">Celular <span class="text-rose-500">*</span></label>
+                        <input type="text" id="std-cel" class="w-full border border-slate-300 px-3.5 py-2.5 rounded-xl text-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none bg-white transition">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1.5">Fecha de nacimiento <span class="text-rose-500">*</span></label>
+                        <input type="date" id="std-birth" class="w-full border border-slate-300 px-3.5 py-2.5 rounded-xl text-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none bg-white transition">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1.5">Lugar de nacimiento</label>
+                        <input type="text" id="std-lugar-nac" list="colombia-cities" placeholder="Escriba ciudad/municipio..." class="w-full border border-slate-300 px-3.5 py-2.5 rounded-xl text-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none bg-white transition">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1.5">Dirección <span class="text-rose-500">*</span></label>
+                        <input type="text" id="std-dir" class="w-full border border-slate-300 px-3.5 py-2.5 rounded-xl text-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none bg-white transition">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1.5">Lugar de residencia <span class="text-rose-500">*</span></label>
+                        <input type="text" id="std-lugar-res" list="colombia-cities" placeholder="Escriba ciudad/municipio..." class="w-full border border-slate-300 px-3.5 py-2.5 rounded-xl text-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none bg-white transition">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1.5">Barrio</label>
+                        <input type="text" id="std-barrio" list="barrios-list" placeholder="Escriba o seleccione barrio..." class="w-full border border-slate-300 px-3.5 py-2.5 rounded-xl text-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none bg-white transition">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1.5">Período <span class="text-rose-500">*</span></label>
+                        <select id="std-periodo" class="w-full border border-slate-300 px-3.5 py-2.5 rounded-xl text-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none bg-white transition">
+                            <option value="2026-A">2026-A</option>
+                            <option value="2026-B" selected>2026-B</option>
+                            <option value="2027-A">2027-A</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1.5">Sede <span class="text-rose-500">*</span></label>
+                        <select id="std-sede" class="w-full border border-slate-300 px-3.5 py-2.5 rounded-xl text-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none bg-white transition">
+                            <option value="Sede Principal">Sede Principal</option>
+                            <option value="Sede Norte">Sede Norte</option>
+                            <option value="Sede Sur">Sede Sur</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Asignación Académica -->
+                    <div class="col-span-1 md:col-span-3 bg-white p-5 border border-slate-200 rounded-2xl shadow-sm space-y-4">
+                        <div class="flex items-center gap-2 border-b border-slate-100 pb-2.5">
+                            <i class="ph-fill ph-graduation-cap text-emerald-600 text-lg"></i>
+                            <span class="text-xs font-bold uppercase tracking-wider text-slate-600">Asignación Académica</span>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="md:col-span-2">
+                                <label class="block text-xs font-semibold text-slate-700 mb-1.5">Programa / Curso <span class="text-rose-500">*</span></label>
+                                <select id="std-programa" onchange="ui.updateStdSalonDropdown()" class="w-full border border-slate-300 px-3.5 py-2.5 rounded-xl text-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none bg-white transition"></select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1.5">Salón a Asignar <span class="text-rose-500">*</span></label>
+                                <select id="std-salon" class="w-full border border-slate-300 px-3.5 py-2.5 rounded-xl text-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none bg-white transition">
+                                    <option value="">Seleccione un curso primero</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1.5">Horario a Asignar <span class="text-rose-500">*</span></label>
+                                <select id="std-horario" class="w-full border border-slate-300 px-3.5 py-2.5 rounded-xl text-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none bg-white transition">
+                                    <option value="">Seleccione un curso primero</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="px-6 py-4 bg-white border-t border-slate-200 flex justify-end gap-3">
+                <button onclick="logic.closeStudentModal()" class="border border-slate-300 text-slate-700 px-5 py-2.5 rounded-xl hover:bg-slate-50 transition text-sm font-semibold">Cancelar</button>
+                <button onclick="logic.saveStudent()" class="bg-emerald-600 text-white px-6 py-2.5 rounded-xl shadow-md shadow-emerald-600/20 hover:bg-emerald-700 transition text-sm font-semibold">Guardar Estudiante</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL PERSONAL / DIRECTIVOS -->
+    <div id="staff-modal" class="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-[120] flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh] border border-slate-200">
+            <div class="px-6 py-4 bg-gradient-to-r from-slate-900 via-slate-800 to-emerald-950 flex justify-between items-center text-white border-b border-emerald-500/30">
+                <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 rounded-xl bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center text-emerald-400">
+                        <i class="ph-fill ph-identification-badge text-xl"></i>
+                    </div>
+                    <h3 class="text-lg font-bold tracking-tight" id="user-form-title">Registrar Personal</h3>
+                </div>
+                <button onclick="logic.closeStaffModal()" class="text-slate-300 hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition">
+                    <i class="ph ph-x text-xl font-bold"></i>
+                </button>
+            </div>
+            <div class="p-6 overflow-y-auto flex-1 bg-slate-50/70">
+                <input type="hidden" id="u-id">
+                <div class="flex flex-col sm:flex-row items-center gap-5 mb-6 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                    <div class="w-20 h-20 rounded-2xl border-2 border-slate-200 overflow-hidden relative group cursor-pointer bg-slate-100 flex-shrink-0" onclick="document.getElementById('u-avatar-upload').click()">
+                        <img id="u-avatar-preview" src="https://placehold.co/100x100/e2e8f0/475569?text=+" class="w-full h-full object-cover">
+                        <div class="absolute inset-0 bg-slate-900/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
+                            <i class="ph-fill ph-camera text-white text-xl"></i>
+                        </div>
+                    </div>
+                    <input type="file" id="u-avatar-upload" class="hidden" accept="image/jpeg,image/png,image/webp" onchange="logic.handleAvatarUpload(event, 'u-avatar-preview')">
+                    <div class="text-center sm:text-left">
+                        <p class="text-sm font-bold text-slate-800">Foto de Perfil</p>
+                        <p class="text-xs text-slate-500 mt-0.5">Haz clic sobre el recuadro para subir una fotografía (máx. 2 MB).</p>
+                        <p class="text-xs text-emerald-700 font-medium mt-1.5 bg-emerald-50 px-2.5 py-1 rounded-lg inline-block border border-emerald-200">La identidad se registra en Supabase Auth y se envía enlace de activación al correo.</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div id="role-container"></div>
+                    <div id="inst-container" class="hidden"></div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1.5">Nombre Completo <span class="text-rose-500">*</span></label>
+                        <input type="text" id="u-name" placeholder="Ej. Carlos Mendoza" class="w-full border border-slate-300 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 px-3.5 py-2.5 rounded-xl text-sm outline-none bg-white transition">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1.5">Correo Electrónico <span class="text-rose-500">*</span></label>
+                        <input type="email" id="u-email" placeholder="correo@institucion.com" class="w-full border border-slate-300 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 px-3.5 py-2.5 rounded-xl text-sm outline-none bg-white transition">
+                    </div>
+                </div>
+
+                <div id="permissions-container" class="hidden mt-5 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                    <div class="flex items-center justify-between mb-3">
+                        <p class="text-xs font-bold text-slate-700 uppercase tracking-wider">Matriz de Permisos por Módulo (Coordinador)</p>
+                        <span class="text-[11px] text-slate-400">Configuración exclusiva de Rectoría</span>
+                    </div>
+                    <div class="overflow-x-auto border border-slate-200 rounded-xl">
+                        <table class="w-full text-left text-xs">
+                            <thead class="bg-slate-50 border-b border-slate-200 text-slate-600 uppercase">
+                                <tr>
+                                    <th class="py-2.5 px-3">Módulo</th>
+                                    <th class="py-2.5 px-2 text-center">Consultar</th>
+                                    <th class="py-2.5 px-2 text-center">Crear</th>
+                                    <th class="py-2.5 px-2 text-center">Editar</th>
+                                    <th class="py-2.5 px-2 text-center">Eliminar</th>
+                                </tr>
+                            </thead>
+                            <tbody id="coord-perms-matrix-body" class="divide-y divide-slate-100"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div id="staff-reset-pass-container" class="hidden mt-5 bg-amber-50/80 p-4 rounded-2xl border border-amber-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                    <div>
+                        <p class="text-xs font-bold text-amber-900 uppercase tracking-wider flex items-center gap-1.5"><i class="ph-fill ph-key text-amber-600 text-base"></i> Recuperación de Cuenta</p>
+                        <p class="text-xs text-amber-800 mt-0.5">Envía un enlace seguro de restablecimiento de contraseña directamente al correo registrado del usuario.</p>
+                    </div>
+                    <button type="button" id="btn-staff-reset-pass" class="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-xl text-xs font-bold transition shadow-sm whitespace-nowrap flex items-center gap-1.5">
+                        <i class="ph-bold ph-envelope-simple"></i> Enviar correo de recuperación
+                    </button>
+                </div>
+            </div>
+            <div class="px-6 py-4 bg-white border-t border-slate-200 flex justify-end gap-3">
+                <button onclick="logic.closeStaffModal()" class="border border-slate-300 text-slate-700 px-5 py-2.5 rounded-xl hover:bg-slate-50 transition text-sm font-semibold">Cancelar</button>
+                <button id="btn-user-submit" onclick="logic.saveUser()" class="bg-emerald-600 text-white px-6 py-2.5 rounded-xl shadow-md shadow-emerald-600/20 hover:bg-emerald-700 transition text-sm font-semibold">Guardar Personal</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL RECUPERACIÓN / NUEVA CONTRASEÑA SUPABASE AUTH -->
+    <div id="token-reset-modal" class="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-[130] flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-200">
+            <div class="px-6 py-4 bg-slate-900 border-b border-slate-800 flex justify-between items-center text-white">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/30">
+                        <i class="ph-fill ph-shield-check text-lg"></i>
+                    </div>
+                    <h3 id="recovery-modal-title" class="text-base font-bold">Recuperar Acceso</h3>
+                </div>
+                <button onclick="auth.closeTokenResetModal()" class="text-slate-400 hover:text-white transition p-1 rounded-lg">
+                    <i class="ph ph-x text-lg"></i>
+                </button>
+            </div>
+
+            <!-- Paso 1: Solicitar enlace por correo -->
+            <form id="recovery-request-form" onsubmit="auth.requestPasswordRecovery(event)" class="p-6 space-y-4">
+                <p class="text-xs text-slate-500 leading-relaxed">Ingresa tu correo electrónico institucional o número de documento. Enviaremos un enlace seguro de verificación para que definas una nueva contraseña.</p>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1.5">Correo electrónico o documento</label>
+                    <input type="text" id="reset-identifier" required placeholder="usuario@institucion.edu.co" class="w-full border border-slate-300 px-3.5 py-2.5 rounded-xl text-sm outline-none focus:border-emerald-600">
+                </div>
+                <div class="pt-2 flex justify-end gap-2.5">
+                    <button type="button" onclick="auth.closeTokenResetModal()" class="border border-slate-300 text-slate-700 px-4 py-2 rounded-xl text-xs font-semibold hover:bg-slate-50">Cancelar</button>
+                    <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2 rounded-xl text-xs font-semibold shadow-sm">Enviar enlace de recuperación</button>
+                </div>
+            </form>
+
+            <!-- Paso 2: Definir nueva contraseña al regresar desde el enlace de Supabase Auth -->
+            <form id="recovery-update-form" onsubmit="auth.completePasswordRecovery(event)" class="p-6 space-y-4 hidden">
+                <p class="text-xs text-slate-500 leading-relaxed">Sesión de recuperación verificada. Define tu nueva contraseña segura (mínimo 8 caracteres, incluyendo letras y números).</p>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1.5">Nueva contraseña segura</label>
+                    <input type="password" id="reset-new-pass" required minlength="8" placeholder="Mínimo 8 caracteres (letras y números)" class="w-full border border-slate-300 px-3.5 py-2.5 rounded-xl text-sm outline-none focus:border-emerald-600">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1.5">Confirmar nueva contraseña</label>
+                    <input type="password" id="reset-confirm-pass" required minlength="8" placeholder="Repite tu contraseña" class="w-full border border-slate-300 px-3.5 py-2.5 rounded-xl text-sm outline-none focus:border-emerald-600">
+                </div>
+                <div class="pt-2 flex justify-end gap-2.5">
+                    <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2 rounded-xl text-xs font-semibold shadow-sm">Guardar Nueva Contraseña</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- PANTALLA DE LOGIN -->
+    <div id="login-view" class="flex-1 flex flex-col lg:flex-row min-h-screen bg-white overflow-y-auto">
+        <!-- COLUMNA IZQUIERDA: FORMULARIO MINIMALISTA DE ACCESO -->
+        <div class="w-full lg:w-[46%] flex flex-col justify-between p-8 sm:p-12 lg:p-16 bg-white">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-slate-900 flex items-center justify-center">
+                    <div class="flex items-end gap-1 h-4">
+                        <div class="w-1 h-2.5 bg-slate-400 rounded-xs"></div>
+                        <div class="w-1.5 h-4 bg-emerald-400 rounded-xs"></div>
+                        <div class="w-1 h-3 bg-white rounded-xs"></div>
+                    </div>
+                </div>
+                <div>
+                    <span class="font-bold text-base tracking-[0.22em] text-slate-900 block leading-none">INTEGRA</span>
+                    <span class="text-[10px] font-semibold tracking-widest text-slate-400 uppercase mt-1 block">Campus &amp; Gestión</span>
+                </div>
+            </div>
+
+            <div class="w-full max-w-sm mx-auto my-12 lg:my-0">
+                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700 mb-2">Portal Institucional</p>
+                <h2 class="text-3xl font-bold text-slate-900 tracking-tight mb-2">Iniciar sesión</h2>
+                <p class="text-sm text-slate-500 mb-8 leading-relaxed">Accede a tu espacio académico, administrativo o estudiantil con tus credenciales autorizadas.</p>
+
+                <form id="login-form" onsubmit="auth.login(event)" class="space-y-5">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-2">Correo electrónico o documento</label>
+                        <div class="relative">
+                            <i class="ph ph-user absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-lg"></i>
+                            <input type="text" id="login-email" required placeholder="usuario@institucion.edu.co" class="w-full pl-10 pr-4 py-3 bg-slate-50/70 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:border-emerald-600 focus:ring-4 focus:ring-emerald-600/10 transition">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-2">Contraseña</label>
+                        <div class="relative">
+                            <i class="ph ph-lock-simple absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-lg"></i>
+                            <input type="password" id="login-pass" required placeholder="Ingresa tu contraseña" class="w-full pl-10 pr-4 py-3 bg-slate-50/70 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:border-emerald-600 focus:ring-4 focus:ring-emerald-600/10 transition">
+                        </div>
+                    </div>
+                    <div class="pt-2">
+                        <button type="submit" class="w-full bg-slate-900 hover:bg-emerald-700 text-white font-semibold py-3.5 rounded-xl transition-colors duration-200 shadow-sm flex items-center justify-center gap-2 text-sm cursor-pointer">
+                            <span>Continuar al Campus</span>
+                            <i class="ph-bold ph-arrow-right text-base"></i>
+                        </button>
+                    </div>
+                    <div class="text-center pt-1">
+                        <button type="button" onclick="auth.openTokenResetModal()" class="text-xs font-semibold text-slate-500 hover:text-emerald-700 transition">
+                            ¿Olvidaste tu contraseña o necesitas activar tu cuenta? Recuperar acceso
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <div class="flex items-center justify-between text-xs text-slate-400 border-t border-slate-100 pt-5">
+                <span>INTEGRA LMS &bull; Edición Institucional</span>
+                <span class="flex items-center gap-1.5 text-slate-500 font-medium">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Servicio operativo
+                </span>
+            </div>
+        </div>
+
+        <!-- COLUMNA DERECHA: PROPUESTA VISUAL LUMINOSA CON DEGRADADO SUTIL -->
+        <div class="hidden lg:flex lg:w-[54%] bg-gradient-to-br from-slate-50 via-emerald-50/60 to-teal-100/70 border-l border-slate-200/80 p-14 xl:p-16 flex-col justify-between relative overflow-hidden">
+            <div class="absolute -right-32 -top-32 w-[28rem] h-[28rem] rounded-full bg-emerald-200/35 blur-3xl pointer-events-none"></div>
+            <div class="absolute -left-24 -bottom-24 w-[24rem] h-[24rem] rounded-full bg-teal-200/30 blur-3xl pointer-events-none"></div>
+
+            <div class="relative z-10 flex items-center justify-between">
+                <span class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Ecosistema Educativo Integral</span>
+                <span class="px-3 py-1 rounded-full bg-white/80 border border-slate-200/80 text-xs font-semibold text-slate-700 shadow-2xs">Arquitectura Multi-Sede</span>
+            </div>
+
+            <div class="relative z-10 my-auto max-w-xl">
+                <div class="rounded-2xl overflow-hidden border border-white shadow-xl shadow-slate-900/5 mb-8 bg-white">
+                    <img src="https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=1200&q=85" alt="Entorno académico" class="w-full h-60 object-cover object-center" onerror="this.src='https://placehold.co/900x400/e2e8f0/334155?text=INTEGRA+LMS'">
+                </div>
+
+                <h1 class="text-3xl xl:text-4xl font-bold text-slate-900 tracking-tight leading-[1.18] mb-4">
+                    Toda la operación académica y administrativa en un solo lugar.
+                </h1>
+                <p class="text-slate-600 text-base leading-relaxed mb-8">
+                    Diseñado para instituciones técnicas y superiores que requieren trazabilidad por módulos, control financiero transparente y comunicación directa entre directivos y docentes.
+                </p>
+
+                <div class="grid grid-cols-3 gap-4 pt-6 border-t border-slate-200/80">
+                    <div>
+                        <p class="text-xs font-bold uppercase tracking-wider text-emerald-800 mb-1">Académico</p>
+                        <p class="text-xs text-slate-600 leading-relaxed">Pensum por módulos, cortes automáticos y asistencia.</p>
+                    </div>
+                    <div>
+                        <p class="text-xs font-bold uppercase tracking-wider text-emerald-800 mb-1">Financiero</p>
+                        <p class="text-xs text-slate-600 leading-relaxed">Cartera estudiantil, libro mayor y recibos oficiales.</p>
+                    </div>
+                    <div>
+                        <p class="text-xs font-bold uppercase tracking-wider text-emerald-800 mb-1">Conectividad</p>
+                        <p class="text-xs text-slate-600 leading-relaxed">Directorio activo y mensajería interna en tiempo real.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="relative z-10 flex items-center gap-8 text-xs text-slate-500 font-medium">
+                <span class="flex items-center gap-2"><i class="ph ph-shield-check text-emerald-700 text-base"></i> Control granular de roles</span>
+                <span class="flex items-center gap-2"><i class="ph ph-database text-emerald-700 text-base"></i> Respaldo continuo en la nube</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- APLICACIÓN PRINCIPAL -->
+    <div id="app-view" class="hidden h-full w-full flex-row bg-slate-100">
+        <!-- BARRA LATERAL IZQUIERDA -->
+        <aside id="sidebar" class="w-64 bg-slate-900 text-white flex flex-col flex-shrink-0 transition-all duration-300 z-30 shadow-2xl border-r border-slate-800">
+            <div class="h-16 px-4 flex items-center gap-3 border-b border-slate-800 cursor-pointer" onclick="ui.renderDashboard()">
+                <div class="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-400/30 flex items-center justify-center flex-shrink-0 shadow-inner">
+                    <div class="flex items-end gap-1 h-5">
+                        <div class="w-1.5 h-3.5 bg-slate-300 rounded-sm"></div>
+                        <div class="w-2 h-5 bg-emerald-400 rounded-sm"></div>
+                        <div class="w-1.5 h-4 bg-amber-400 rounded-sm"></div>
+                    </div>
+                </div>
+                <div class="overflow-hidden">
+                    <span class="font-extrabold text-sm tracking-widest block leading-tight text-white">INTEGRA LMS</span>
+                    <span id="sidebar-inst-sub" class="text-[11px] text-emerald-400 font-medium truncate block">Panel Global</span>
+                </div>
+            </div>
+
+            <div class="flex-1 overflow-y-auto py-4 px-3 space-y-1" id="main-nav"></div>
+
+            <div class="p-3 border-t border-slate-800 space-y-1">
+                <button onclick="ui.renderProfile()" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-300 hover:text-white hover:bg-white/10 transition text-sm">
+                    <i class="ph ph-user-circle text-lg flex-shrink-0 text-emerald-400"></i>
+                    <span class="sidebar-text font-medium">Mi Perfil</span>
+                </button>
+                <button onclick="ui.toggleSidebar()" class="sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition text-sm">
+                    <i id="collapse-icon" class="ph ph-caret-circle-left text-lg flex-shrink-0 transition-transform duration-300"></i>
+                    <span class="sidebar-text font-medium">Achicar menú</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- ÁREA DERECHA -->
+        <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
+            <header class="h-16 bg-white border-b border-slate-200 px-4 sm:px-6 flex items-center justify-between gap-4 z-20 flex-shrink-0">
+                <div class="flex items-center gap-3 min-w-0">
+                    <div id="header-context" class="hidden sm:flex items-center gap-2 text-xs font-bold text-slate-800 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200/80">
+                        <i class="ph-fill ph-buildings text-emerald-600 text-sm"></i>
+                        <span id="header-inst-name" class="truncate max-w-[180px]">Global</span>
+                    </div>
+
+                    <div class="relative w-56 md:w-80 hidden" id="header-search-container">
+                        <i class="ph ph-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-base"></i>
+                        <input type="text" id="global-search-input" onkeyup="ui.performGlobalSearch()" placeholder="Buscar personas..." class="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-100 border border-transparent focus:border-emerald-500 focus:bg-white text-slate-800 text-sm outline-none transition">
+                        <div id="global-search-results" class="absolute left-0 top-full mt-2 w-80 bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden z-[100] hidden max-h-96 overflow-y-auto"></div>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-2.5 sm:gap-3">
+                    <!-- CHAT EN LÍNEA -->
+                    <div id="chat-header-widget" class="relative hidden">
+                        <button id="chat-toggle-btn" onclick="chat.toggleRoster(event)" class="flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-white px-3 py-1.5 rounded-full transition shadow-sm border border-slate-700 cursor-pointer">
+                            <div id="chat-header-avatars" class="flex -space-x-1.5"></div>
+                            <span id="chat-online-count-label" class="text-xs font-semibold whitespace-nowrap">0 conectados</span>
+                            <span id="chat-unread-badge" class="hidden bg-amber-500 text-slate-950 text-[10px] font-extrabold px-1.5 py-0.5 rounded-full leading-none shadow-sm">0</span>
+                        </button>
+
+                        <div id="chat-roster-dropdown" onclick="event.stopPropagation()" class="hidden fixed sm:absolute right-2 sm:right-0 top-16 sm:top-full sm:mt-2 w-[calc(100vw-1rem)] sm:w-80 bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden z-[150] flex flex-col">
+                            <div class="bg-gradient-to-r from-slate-900 to-emerald-950 text-white px-4 py-3.5 flex items-center justify-between cursor-pointer border-b border-emerald-500/30" onclick="chat.toggleRoster(event)">
+                                <div class="flex items-center gap-2.5">
+                                    <i class="ph-fill ph-chats-circle text-xl text-emerald-400"></i>
+                                    <div>
+                                        <p class="text-sm font-bold leading-tight">Chat Institucional</p>
+                                        <p id="chat-panel-subtitle" class="text-[11px] text-emerald-300">0 conectados ahora</p>
+                                    </div>
+                                </div>
+                                <i class="ph ph-caret-down text-sm text-slate-300"></i>
+                            </div>
+                            <div class="p-3 border-b border-slate-100 bg-slate-50/70">
+                                <div class="relative">
+                                    <i class="ph ph-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+                                    <input type="text" id="chat-search-input" onkeyup="chat.renderRoster()" placeholder="Buscar persona..." class="w-full pl-8 pr-3 py-2 rounded-xl bg-white border border-slate-200 text-xs text-slate-700 outline-none focus:border-emerald-500">
+                                </div>
+                            </div>
+                            <div id="chat-roster-list" class="max-h-80 overflow-y-auto divide-y divide-slate-50"></div>
+                            <div class="px-4 py-2 bg-slate-50 border-t border-slate-100 text-center">
+                                <p class="text-[11px] text-slate-400">Los mensajes se borran solos a los 30 días.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- PERFIL -->
+                    <div class="dropdown relative cursor-pointer" onclick="ui.toggleDropdown(this, event)">
+                        <div class="flex items-center gap-2.5 hover:bg-slate-100 px-2.5 py-1.5 rounded-xl transition border border-transparent hover:border-slate-200">
+                            <img id="header-avatar" src="https://placehold.co/100x100/e2e8f0/475569?text=U" class="w-8 h-8 rounded-full object-cover bg-slate-100 border-2 border-emerald-500/40" alt="Avatar">
+                            <div class="hidden md:block text-left">
+                                <span id="header-user-name" class="block text-xs font-bold text-slate-800 leading-none">USUARIO</span>
+                                <span id="header-user-role" class="block text-[10px] font-bold text-emerald-600 uppercase mt-0.5">Rol</span>
+                            </div>
+                            <i class="ph-bold ph-caret-down text-xs text-slate-400"></i>
+                        </div>
+                        <div class="dropdown-menu absolute right-0 top-full mt-2 w-48 bg-white text-slate-800 rounded-2xl shadow-xl border border-slate-200 overflow-hidden z-50">
+                            <a href="#" onclick="ui.closeAllDropdowns(); ui.renderProfile(); return false;" class="flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-emerald-50 hover:text-emerald-700 font-medium"><i class="ph ph-user text-base"></i>Mi Perfil</a>
+                            <a href="#" onclick="ui.closeAllDropdowns(); auth.logout(); return false;" class="flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-rose-50 text-rose-600 border-t border-slate-100 font-medium"><i class="ph ph-sign-out text-base"></i>Cerrar Sesión</a>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <main class="flex-1 overflow-y-auto relative p-6 sm:p-8">
+                <div id="sys-banner" class="bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-3 rounded-2xl mb-6 text-sm flex justify-between items-center hidden">
+                    <span id="sys-banner-text">Mensaje del sistema.</span>
+                    <button onclick="document.getElementById('sys-banner').classList.add('hidden')" class="text-emerald-500 hover:text-emerald-700"><i class="ph ph-x"></i></button>
+                </div>
+                <div id="view-container" class="max-w-6xl mx-auto"></div>
+            </main>
+        </div>
+    </div>
+
+    <!-- DOCK DE VENTANAS DE CHAT INDEPENDIENTES -->
+    <div id="chat-windows-dock" class="fixed bottom-0 right-4 z-[140] flex items-end gap-3 pointer-events-none max-w-full overflow-x-auto px-2"></div>
+
+    <script src="./app.js"></script>
+
+</body>
+</html>
